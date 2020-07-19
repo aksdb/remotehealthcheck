@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"net"
 	"time"
 
 	"go.uber.org/zap"
@@ -22,7 +23,7 @@ type BaseCheck struct {
 
 func (b *BaseCheck) UpdateState(ok bool, reason string) {
 	b.lastCheckTime = time.Now()
-	if ok != b.lastOk {
+	if ok != b.lastOk || b.lastStateChange.IsZero() {
 		b.lastStateChange = time.Now()
 		b.lastOk = ok
 		state := CheckState{
@@ -59,7 +60,10 @@ type TlsCheck struct {
 }
 
 func (t *TlsCheck) Perform() bool {
-	conn, err := tls.Dial("tcp", t.Address, &tls.Config{
+	dialer := &net.Dialer{
+		Timeout: 5 * time.Second,
+	}
+	conn, err := tls.DialWithDialer(dialer, "tcp", t.Address, &tls.Config{
 		InsecureSkipVerify: t.Insecure,
 	})
 	if err != nil {
