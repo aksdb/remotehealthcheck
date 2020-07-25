@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"regexp"
+	"strings"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
@@ -26,18 +28,22 @@ func NewHealthChecker(checkFilepath string, notifier CheckNotifier) *HealthCheck
 	hc := &HealthChecker{
 		notifier: notifier,
 	}
-	hc.checks = hc.mapRawChecks(rawChecks)
+	hc.checks = hc.mapRawChecks(rawChecks, "")
 
 	return hc
 }
 
-func (hc *HealthChecker) mapRawChecks(rawChecks []rawCheck) []Check {
+func (hc *HealthChecker) mapRawChecks(rawChecks []rawCheck, parentId string) []Check {
 	var checks []Check
 	for _, rawCheck := range rawChecks {
 		baseCheck := &BaseCheck{
 			Name:     rawCheck.StringValue("name"),
 			Type:     rawCheck.StringValue("type"),
 			notifier: hc.notifier,
+		}
+		baseCheck.id = buildId(baseCheck.Name)
+		if parentId != "" {
+			baseCheck.id = parentId + "." + baseCheck.id
 		}
 
 		var check Check
@@ -46,7 +52,7 @@ func (hc *HealthChecker) mapRawChecks(rawChecks []rawCheck) []Check {
 		case "group":
 			check = &Group{
 				BaseCheck: baseCheck,
-				Checks:    hc.mapRawChecks(rawCheck.SubChecks("checks")),
+				Checks:    hc.mapRawChecks(rawCheck.SubChecks("checks"), baseCheck.id),
 			}
 		case "tls":
 			check = &TlsCheck{
@@ -122,4 +128,14 @@ func (r rawCheck) SubChecks(name string) []rawCheck {
 		}
 	}
 	return val
+}
+
+var nonWordChars = regexp.MustCompile(`[^\w]`)
+var separatorChain = regexp.MustCompile(`_+`)
+
+func buildId(s string) string {
+	s = strings.ToLower(s)
+	s = nonWordChars.ReplaceAllString(s, "_")
+	s = separatorChain.ReplaceAllString(s, "_")
+	return s
 }

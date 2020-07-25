@@ -13,16 +13,16 @@ type CheckState struct {
 }
 
 type CheckNotifier interface {
-	Notify(checkName string, state CheckState) error
+	Notify(info CheckInfo, state CheckState) error
 }
 
 type MultiNotifier struct {
 	notifiers []CheckNotifier
 }
 
-func (m *MultiNotifier) Notify(checkName string, state CheckState) error {
+func (m *MultiNotifier) Notify(info CheckInfo, state CheckState) error {
 	for _, n := range m.notifiers {
-		if err := n.Notify(checkName, state); err != nil {
+		if err := n.Notify(info, state); err != nil {
 			zap.L().Error("Could not call notifier.", zap.Error(err))
 		}
 	}
@@ -35,8 +35,8 @@ func (m *MultiNotifier) RegisterNotifier(cn CheckNotifier) {
 
 type LogNotifier struct{}
 
-func (LogNotifier) Notify(checkName string, state CheckState) error {
-	l := zap.L().With(zap.String("name", checkName), zap.Time("time", state.Timestamp), zap.String("reason", state.Reason))
+func (LogNotifier) Notify(info CheckInfo, state CheckState) error {
+	l := zap.L().With(zap.String("name", info.CheckName()), zap.Time("time", state.Timestamp), zap.String("reason", state.Reason))
 	if state.Ok {
 		l.Info("Check succeeded.")
 	} else {

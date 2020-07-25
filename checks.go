@@ -13,7 +13,13 @@ type Check interface {
 	Perform() bool
 }
 
+type CheckInfo interface {
+	CheckId() string
+	CheckName() string
+}
+
 type BaseCheck struct {
+	id              string
 	Name            string `yaml:"name"`
 	Type            string `yaml:"type"`
 	lastCheckTime   time.Time
@@ -32,10 +38,18 @@ func (b *BaseCheck) UpdateState(ok bool, reason string) {
 			Ok:        ok,
 			Reason:    reason,
 		}
-		if err := b.notifier.Notify(b.Name, state); err != nil {
+		if err := b.notifier.Notify(b, state); err != nil {
 			zap.L().Error("Cannot notify.", zap.String("name", b.Name), zap.Error(err))
 		}
 	}
+}
+
+func (b BaseCheck) CheckId() string {
+	return b.id
+}
+
+func (b BaseCheck) CheckName() string {
+	return b.Name
 }
 
 type Group struct {

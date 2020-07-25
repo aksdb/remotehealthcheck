@@ -11,12 +11,12 @@ import (
 )
 
 type WebNotifier struct {
-	checkStates map[string]CheckState
+	checkStates map[CheckInfo]CheckState
 }
 
 func NewWebNotifier(sm *SubroutineManager, listenAddress string) *WebNotifier {
 	wn := &WebNotifier{
-		checkStates: make(map[string]CheckState),
+		checkStates: make(map[CheckInfo]CheckState),
 	}
 
 	r := chi.NewRouter()
@@ -72,8 +72,8 @@ func (wn *WebNotifier) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wn *WebNotifier) Notify(checkName string, state CheckState) error {
-	wn.checkStates[checkName] = state
+func (wn *WebNotifier) Notify(info CheckInfo, state CheckState) error {
+	wn.checkStates[info] = state
 	return nil
 }
 
@@ -91,7 +91,7 @@ var statusPageTemplate = template.Must(template.New("statusPageTemplate").Parse(
 	</tr>
 {{ range $check, $status := . }}
 	<tr style="background-color: {{ if $status.Ok }}green{{ else }}red{{ end }}">
-		<td>{{ $check }}</td>
+		<td>{{ $check.CheckName }}</td>
 		<td>{{ if $status.Ok }}OK{{ else }}Failed{{ end }}</td>
 		<td>{{ $status.Reason }}</td>
 	</tr>
