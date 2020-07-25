@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"net"
+	"net/smtp"
 	"time"
 
 	"go.uber.org/zap"
@@ -72,6 +73,23 @@ func (t *TlsCheck) Perform() bool {
 	} else {
 		t.UpdateState(true, "")
 		conn.Close()
+		return true
+	}
+}
+
+type SmtpCheck struct {
+	*BaseCheck
+	Address string `yaml:"address"`
+}
+
+func (s *SmtpCheck) Perform() bool {
+	c, err := smtp.Dial(s.Address)
+	if err != nil {
+		s.UpdateState(false, err.Error())
+		return false
+	} else {
+		s.UpdateState(true, "")
+		c.Close()
 		return true
 	}
 }

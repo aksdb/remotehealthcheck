@@ -54,6 +54,11 @@ func (hc *HealthChecker) mapRawChecks(rawChecks []rawCheck) []Check {
 				Address:   rawCheck.StringValue("address"),
 				Insecure:  rawCheck.BoolValue("insecure"),
 			}
+		case "smtp":
+			check = &SmtpCheck{
+				BaseCheck: baseCheck,
+				Address:   rawCheck.StringValue("address"),
+			}
 		default:
 			zap.L().Fatal("Unrecognized type.", zap.String("type", baseCheck.Type))
 		}
