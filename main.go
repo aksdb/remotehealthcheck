@@ -14,7 +14,10 @@ import (
 )
 
 var (
+	checksFile    = flag.String("checks", "checks.yaml", "File defining the checks to be run.")
 	checkInterval = flag.String("interval", "10m", "Interval to run checks in.")
+	webListener   = flag.String("webListener", "", "Address to listen on for web based status queries.")
+	dontLogChecks = flag.Bool("dontLogChecks", false, "Don't log check changes.")
 )
 
 func main() {
@@ -24,10 +27,16 @@ func main() {
 	sm := NewSubroutineManager()
 
 	notifier := &MultiNotifier{}
-	notifier.RegisterNotifier(&LogNotifier{})
-	notifier.RegisterNotifier(NewWebNotifier(sm, ":3000"))
 
-	hc := NewHealthChecker("checks.yaml", notifier)
+	if !*dontLogChecks {
+		notifier.RegisterNotifier(&LogNotifier{})
+	}
+
+	if *webListener != "" {
+		notifier.RegisterNotifier(NewWebNotifier(sm, *webListener))
+	}
+
+	hc := NewHealthChecker(*checksFile, notifier)
 
 	checkIntervalDuration, err := time.ParseDuration(*checkInterval)
 	if err != nil {
