@@ -4,6 +4,8 @@ import (
 	"context"
 	"html/template"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -49,9 +51,33 @@ func NewWebNotifier(sm *SubroutineManager, listenAddress string) *WebNotifier {
 	return wn
 }
 
+type webStatus struct {
+	CheckId   string
+	CheckName string
+	IndentEm  int
+	Ok        bool
+	Reason    string
+}
+
 func (wn *WebNotifier) handleStatusOverview(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	if err := statusPageTemplate.Execute(w, wn.checkStates); err != nil {
+
+	var status []webStatus
+	for cinfo, cstate := range wn.checkStates {
+		s := webStatus{
+			CheckId:   cinfo.CheckId(),
+			CheckName: cinfo.CheckName(),
+			IndentEm:  2 * strings.Count(cinfo.CheckId(), "."),
+			Ok:        cstate.Ok,
+			Reason:    cstate.Reason,
+		}
+		status = append(status, s)
+	}
+	sort.Slice(status, func(i, j int) bool {
+		return status[i].CheckId < status[j].CheckId
+	})
+
+	if err := statusPageTemplate.Execute(w, status); err != nil {
 		zap.L().Error("Cannot render status page.", zap.Error(err))
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -89,9 +115,9 @@ var statusPageTemplate = template.Must(template.New("statusPageTemplate").Parse(
 		<th>Status</th>
 		<th>Reason</th>
 	</tr>
-{{ range $check, $status := . }}
+{{ range $status := . }}
 	<tr style="background-color: {{ if $status.Ok }}green{{ else }}red{{ end }}">
-		<td>{{ $check.CheckName }}</td>
+		<td style="padding-left: {{ $status.IndentEm }}em; padding-right: 1em">{{ if (gt $status.IndentEm 0) }}| {{ end }}{{ $status.CheckName }}</td>
 		<td>{{ if $status.Ok }}OK{{ else }}Failed{{ end }}</td>
 		<td>{{ $status.Reason }}</td>
 	</tr>
